@@ -55,7 +55,8 @@ class MediaItemFactoryExtendedTest {
         every { jellyfinApi.universalAudioApi } returns mockUniversalAudioApi
         every { mockUniversalAudioApi.getUniversalAudioStreamUrl(any(), any(), any(), any(), any(), any(), any()) } returns "http://localhost:8096/Audio/test-id/universal"
 
-        factory = MediaItemFactory(context, jellyfinApi, 256)
+        val streamingUrlBuilder = StreamingUrlBuilder(context, jellyfinApi, AudioCapabilities { false })
+        factory = MediaItemFactory(context, jellyfinApi, 256, streamingUrlBuilder)
     }
 
     private fun userItemData(

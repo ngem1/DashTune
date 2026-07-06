@@ -33,6 +33,7 @@ import com.chamika.dashtune.media.MediaItemFactory
 import com.chamika.dashtune.media.MediaItemFactory.Companion.IS_AUDIOBOOK_KEY
 import com.chamika.dashtune.media.MediaItemFactory.Companion.ROOT_ID
 import com.chamika.dashtune.media.MediaItemResolver
+import com.chamika.dashtune.media.StreamingUrlBuilder
 import com.chamika.dashtune.signin.SignInActivity
 import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.Futures
@@ -54,7 +55,8 @@ class DashTuneSessionCallback(
     private val service: DashTuneMusicService,
     private val accountManager: JellyfinAccountManager,
     private val jellyfinApi: ApiClient,
-    private val mediaCacheDao: MediaCacheDao
+    private val mediaCacheDao: MediaCacheDao,
+    private val streamingUrlBuilder: StreamingUrlBuilder,
 ) : MediaLibraryService.MediaLibrarySession.Callback {
 
     companion object {
@@ -116,7 +118,7 @@ class DashTuneSessionCallback(
                 val artSize = artSizeHint ?: 1024
                 Log.d(LOG_TAG, "Initializing media tree with art size: $artSize")
 
-                val itemFactory = MediaItemFactory(service, jellyfinApi, artSize)
+                val itemFactory = MediaItemFactory(service, jellyfinApi, artSize, streamingUrlBuilder)
                 val tree = JellyfinMediaTree(service, jellyfinApi, itemFactory)
                 repository = MediaRepository(mediaCacheDao, tree, itemFactory)
                 resolver = MediaItemResolver(repository)

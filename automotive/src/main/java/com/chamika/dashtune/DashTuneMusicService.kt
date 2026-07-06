@@ -28,6 +28,7 @@ import androidx.media3.datasource.cache.LeastRecentlyUsedCacheEvictor
 import androidx.media3.datasource.cache.NoOpCacheEvictor
 import androidx.media3.datasource.cache.SimpleCache
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.analytics.AnalyticsListener
 import androidx.media3.exoplayer.offline.Download
 import androidx.media3.exoplayer.offline.DownloadManager
 import androidx.media3.exoplayer.offline.DownloadRequest
@@ -43,6 +44,10 @@ import com.chamika.dashtune.DashTuneSessionCallback.Companion.PLAYLIST_TRACK_POS
 import com.chamika.dashtune.data.db.MediaCacheDao
 import com.chamika.dashtune.media.MediaItemFactory.Companion.ROOT_ID
 import com.chamika.dashtune.media.MediaItemFactory.Companion.IS_AUDIOBOOK_KEY
+import com.chamika.dashtune.media.PlaybackFormatFormatter
+import com.chamika.dashtune.media.PlaybackMetadataUpdater
+import com.chamika.dashtune.media.StreamingUrlBuilder
+import com.chamika.dashtune.media.AudioCapabilities
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -54,7 +59,6 @@ import org.jellyfin.sdk.api.client.ApiClient
 import org.jellyfin.sdk.api.client.HttpClientOptions
 import org.jellyfin.sdk.api.client.extensions.itemsApi
 import org.jellyfin.sdk.api.client.extensions.playStateApi
-import org.jellyfin.sdk.api.client.extensions.universalAudioApi
 import org.jellyfin.sdk.model.api.BaseItemKind
 import org.jellyfin.sdk.model.api.ItemFilter
 import org.jellyfin.sdk.model.api.PlaybackStartInfo
@@ -150,6 +154,11 @@ class DashTuneMusicService : MediaLibraryService() {
     @Inject
     lateinit var mediaCacheDao: MediaCacheDao
 
+    @Inject
+    lateinit var audioCapabilities: AudioCapabilities
+
+    private lateinit var streamingUrlBuilder: StreamingUrlBuilder
+
     private lateinit var accountManager: com.chamika.dashtune.auth.JellyfinAccountManager
     private lateinit var jellyfinApi: ApiClient
     private lateinit var mediaSourceFactory: DefaultMediaSourceFactory
@@ -205,6 +214,7 @@ class DashTuneMusicService : MediaLibraryService() {
                 socketTimeout = 7.seconds,
             )
         )
+        streamingUrlBuilder = StreamingUrlBuilder(this, jellyfinApi, audioCapabilities)
 
         // Setup offline cache
         val cacheSizeStr = PreferenceManager.getDefaultSharedPreferences(this)
@@ -373,6 +383,15 @@ class DashTuneMusicService : MediaLibraryService() {
             .setMediaSourceFactory(mediaSourceFactory)
             .build()
         player.addListener(playerListener)
+        player.addAnalyticsListener(object : AnalyticsListener {
+            override fun onAudioInputFormatChanged(
+                eventTime: AnalyticsListener.EventTime,
+                format: androidx.media3.common.Format,
+                decoderReuseEvaluation: androidx.media3.exoplayer.DecoderReuseEvaluation?,
+            ) {
+                PlaybackMetadataUpdater.updateNowPlayingFormat(this@DashTuneMusicService, player, format)
+            }
+        })
 
         // Restore saved shuffle and repeat states
         val prefs = PreferenceManager.getDefaultSharedPreferences(this)
@@ -426,7 +445,13 @@ class DashTuneMusicService : MediaLibraryService() {
             }
         }
 
-        callback = DashTuneSessionCallback(this, accountManager, jellyfinApi, mediaCacheDao)
+        callback = DashTuneSessionCallback(
+            this,
+            accountManager,
+            jellyfinApi,
+            mediaCacheDao,
+            streamingUrlBuilder,
+        )
 
         mediaLibrarySession = MediaLibrarySession.Builder(this, player, callback)
             .setMediaButtonPreferences(CommandButtons.createButtons(player))
@@ -667,10 +692,6 @@ class DashTuneMusicService : MediaLibraryService() {
                     includeItemTypes = listOf(BaseItemKind.AUDIO)
                 ).content.items
 
-                val preferenceBitrate = prefs.getString("bitrate", "Direct stream")!!
-                val bitrate = if (preferenceBitrate == "Direct stream") null else preferenceBitrate.toIntOrNull()
-                val allowedContainers = listOf("flac", "mp3", "m4a", "aac", "ogg")
-
                 var queued = 0
                 for (item in items) {
                     try {
@@ -684,14 +705,7 @@ class DashTuneMusicService : MediaLibraryService() {
                         ) {
                             continue
                         }
-                        val streamUrl = jellyfinApi.universalAudioApi.getUniversalAudioStreamUrl(
-                            item.id,
-                            container = allowedContainers,
-                            audioBitRate = bitrate,
-                            maxStreamingBitrate = bitrate,
-                            transcodingContainer = "mp3",
-                            audioCodec = "mp3"
-                        )
+                        val streamUrl = streamingUrlBuilder.buildStreamingUrl(item.id)
                         val downloadRequest = DownloadRequest.Builder(
                             item.id.toString(),
                             streamUrl.toUri()
@@ -793,12 +807,14 @@ class DashTuneMusicService : MediaLibraryService() {
         if (player.currentMediaItem != null) {
             val exoPlayer = player as ExoPlayer
             val format = exoPlayer.audioFormat
-            val formatString = "${format?.containerMimeType} at ${format?.averageBitrate} bps"
+            val formatString = PlaybackFormatFormatter.formatLabel(format)
+                ?: "${format?.sampleMimeType} at ${format?.averageBitrate} bps"
 
             Log.i(
                 LOG_TAG,
                 "Playing $formatString: ${exoPlayer.currentMediaItem?.localConfiguration?.uri}"
             )
+            PlaybackMetadataUpdater.updateNowPlayingFormat(this, player, format)
             jellyfinApi.playStateApi.reportPlaybackStart(
                 PlaybackStartInfo(
                     itemId = player.currentMediaItem!!.mediaId.toUUID(),

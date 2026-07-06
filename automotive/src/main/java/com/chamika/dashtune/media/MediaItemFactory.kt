@@ -10,14 +10,11 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.MediaConstants
-import androidx.preference.PreferenceManager
 import com.chamika.dashtune.AlbumArtContentProvider
 import org.jellyfin.sdk.api.client.ApiClient
-import org.jellyfin.sdk.api.client.extensions.universalAudioApi
 import org.jellyfin.sdk.api.operations.ImageApi
 import org.jellyfin.sdk.model.UUID
 import org.jellyfin.sdk.model.api.BaseItemDto
-import org.jellyfin.sdk.model.serializer.toUUID
 import org.jellyfin.sdk.model.api.BaseItemKind
 import org.jellyfin.sdk.model.api.ImageType
 
@@ -25,7 +22,8 @@ import org.jellyfin.sdk.model.api.ImageType
 class MediaItemFactory(
     private val context: Context,
     private val jellyfinApi: ApiClient,
-    private val artSize: Int
+    private val artSize: Int,
+    private val streamingUrlBuilder: StreamingUrlBuilder,
 ) {
 
     companion object {
@@ -356,23 +354,7 @@ class MediaItemFactory(
         return AlbumArtContentProvider.mapUri(artUrl.toUri())
     }
 
-    fun streamingUri(mediaId: String): String {
-        val preferenceBitrate = PreferenceManager
-            .getDefaultSharedPreferences(context)
-            .getString("bitrate", "Direct stream")!!
-
-        val bitrate = if (preferenceBitrate == "Direct stream") null else preferenceBitrate.toIntOrNull()
-
-        val allowedContainers = listOf("flac", "mp3", "m4a", "aac", "ogg")
-        return jellyfinApi.universalAudioApi.getUniversalAudioStreamUrl(
-            mediaId.toUUID(),
-            container = allowedContainers,
-            audioBitRate = bitrate,
-            maxStreamingBitrate = bitrate,
-            transcodingContainer = "mp3",
-            audioCodec = "mp3",
-        )
-    }
+    fun streamingUri(mediaId: String): String = streamingUrlBuilder.buildStreamingUrl(mediaId)
 
     fun create(
         baseItemDto: BaseItemDto,

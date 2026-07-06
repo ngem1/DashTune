@@ -18,15 +18,20 @@ import androidx.preference.PreferenceManager
 import com.chamika.dashtune.DashTuneMusicService
 import com.chamika.dashtune.DashTuneSessionCallback.Companion.SYNC_COMMAND
 import com.chamika.dashtune.R
+import com.chamika.dashtune.media.AudioCapabilities
 import com.chamika.dashtune.signin.SignInActivity
 import com.google.common.util.concurrent.ListenableFuture
 import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
 import kotlinx.coroutines.launch
 import java.text.DateFormat
 import java.util.Date
 
 @AndroidEntryPoint
 class SettingsFragment : PreferenceFragmentCompat() {
+
+    @Inject
+    lateinit var audioCapabilities: AudioCapabilities
 
     private lateinit var viewModel: SettingsViewModel
     private lateinit var controllerFuture: ListenableFuture<MediaController>
@@ -36,6 +41,14 @@ class SettingsFragment : PreferenceFragmentCompat() {
 
         viewModel = ViewModelProvider(this)[SettingsViewModel::class.java]
         findPreference<Preference>("version")?.summary = viewModel.versionString()
+
+        val atmosPref = findPreference<androidx.preference.SwitchPreferenceCompat>("dolby_atmos")
+        if (audioCapabilities.supportsAtmosCodecs()) {
+            atmosPref?.isVisible = true
+        } else {
+            atmosPref?.isVisible = false
+            atmosPref?.isChecked = false
+        }
 
         findPreference<MultiSelectListPreference>("browse_categories")?.setOnPreferenceChangeListener { _, newValue ->
             @Suppress("UNCHECKED_CAST")

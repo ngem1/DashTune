@@ -6,8 +6,20 @@
         android:entries="@array/bitrate"
         android:entryValues="@array/bitrateValues"
         android:key="bitrate"
-        android:summary="%s"
+        android:summary="@string/max_bitrate_summary"
         android:title="@string/max_bitrate" />
+
+    <SwitchPreferenceCompat
+        android:defaultValue="true"
+        android:key="dolby_atmos"
+        android:summary="@string/dolby_atmos_summary"
+        android:title="@string/dolby_atmos" />
+
+    <SwitchPreferenceCompat
+        android:defaultValue="true"
+        android:key="show_stream_format"
+        android:summary="@string/show_stream_format_summary"
+        android:title="@string/show_stream_format" />
 
     <ListPreference
         android:defaultValue="200"

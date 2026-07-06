@@ -21,6 +21,12 @@
     <string name="playlists">Playlists</string>
     <string name="settings">Settings</string>
     <string name="max_bitrate">Maximum bitrate</string>
+    <string name="max_bitrate_summary">Direct stream required for Dolby Atmos. Lower bitrates transcode to MP3.</string>
+    <string name="dolby_atmos">Dolby Atmos</string>
+    <string name="dolby_atmos_summary">Play Dolby Atmos music when your head unit supports it</string>
+    <string name="dolby_atmos_unsupported">Dolby Atmos is not supported by this head unit</string>
+    <string name="show_stream_format">Show stream format</string>
+    <string name="show_stream_format_summary">Display codec and bitrate on the now playing screen</string>
     <string name="cache_size">Offline cache size</string>
     <string name="prefetch_count">Offline song count</string>
     <string name="app_version">App version</string>

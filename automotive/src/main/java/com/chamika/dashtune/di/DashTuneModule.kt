@@ -9,6 +9,7 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
+import com.chamika.dashtune.media.AudioCapabilities
 import org.jellyfin.sdk.Jellyfin
 import org.jellyfin.sdk.android.androidDevice
 import org.jellyfin.sdk.createJellyfin
@@ -34,4 +35,7 @@ class DashTuneModule {
     fun provideAccountManager(@ApplicationContext appContext: Context): JellyfinAccountManager {
         return JellyfinAccountManager(AccountManager.get(appContext))
     }
+
+    @Provides
+    fun provideAudioCapabilities(): AudioCapabilities = AudioCapabilities()
 }
