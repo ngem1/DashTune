@@ -601,6 +601,7 @@ class MediaRepository(
                 when (val value = bundle.get(key)) {
                     is String -> json.put(key, value)
                     is Int -> json.put(key, value)
+                    is Long -> json.put(key, value)
                     is Boolean -> json.put(key, value)
                 }
             }
@@ -634,7 +635,12 @@ class MediaRepository(
             for (key in jsonObj.keys()) {
                 when (val value = jsonObj.get(key)) {
                     is String -> bundle.putString(key, value)
-                    is Int -> bundle.putInt(key, value)
+                    is Long -> bundle.putLong(key, value)
+                    is Int -> if (key == DolbySupport.KEY_IMMERSIVE_AUDIO) {
+                        bundle.putLong(key, value.toLong())
+                    } else {
+                        bundle.putInt(key, value)
+                    }
                     is Boolean -> bundle.putBoolean(key, value)
                 }
             }

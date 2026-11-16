@@ -542,6 +542,12 @@ class MediaItemFactory(
             MediaConstants.EXTRAS_VALUE_CONTENT_STYLE_LIST_ITEM
         )
         setCompletionStatus(extras, item)
+        val forceTranscode = DolbySupport.requiresTranscoding(item, dolbyCapabilities)
+        val isTranscoding = forceTranscode || isTranscodingEnabled()
+        DolbySupport.applyFormatAttribution(
+            extras,
+            DolbySupport.fromJellyfinItem(item, dolbyCapabilities, isTranscoding)
+        )
 
         val metadata = MediaMetadata.Builder()
             .setTitle(item.name)
@@ -553,7 +559,11 @@ class MediaItemFactory(
             .setExtras(extras)
             .build()
 
-        val audioStream = streamingUri(item.id.toString())
+        val audioStream = if (forceTranscode) {
+            streamingUri(item.id.toString(), forceTranscode = true)
+        } else {
+            streamingUri(item.id.toString())
+        }
 
         return MediaItem.Builder()
             .setMediaId(item.id.toString())
@@ -639,7 +649,12 @@ class MediaItemFactory(
         val hasOwnImage = item.imageTags?.containsKey(ImageType.PRIMARY) == true
         val artUrl = artUri(if (hasOwnImage) item.id else (item.albumId ?: item.id))
 
-        val audioStream = streamingUri(item.id.toString())
+        val forceTranscode = DolbySupport.requiresTranscoding(item, dolbyCapabilities)
+        val audioStream = if (forceTranscode) {
+            streamingUri(item.id.toString(), forceTranscode = true)
+        } else {
+            streamingUri(item.id.toString())
+        }
 
         val extras = Bundle()
         if (group != null) {
@@ -658,6 +673,12 @@ class MediaItemFactory(
             extras.putBoolean(IS_AUDIOBOOK_KEY, true)
             setCompletionStatus(extras, item)
         }
+
+        val isTranscoding = forceTranscode || isTranscodingEnabled()
+        DolbySupport.applyFormatAttribution(
+            extras,
+            DolbySupport.fromJellyfinItem(item, dolbyCapabilities, isTranscoding)
+        )
 
         val metadata = MediaMetadata.Builder()
             .setTitle(item.name)
@@ -711,14 +732,24 @@ class MediaItemFactory(
         return AlbumArtContentProvider.mapUri(artUrl.toUri())
     }
 
-    fun streamingUri(mediaId: String): String {
+    private fun isTranscodingEnabled(): Boolean =
+        PreferenceManager.getDefaultSharedPreferences(context)
+            .getString("bitrate", "Direct stream") != "Direct stream"
+
+    fun streamingUri(mediaId: String): String = streamingUri(mediaId, forceTranscode = false)
+
+    fun streamingUri(mediaId: String, forceTranscode: Boolean): String {
         val preferenceBitrate = PreferenceManager
             .getDefaultSharedPreferences(context)
             .getString("bitrate", "Direct stream")!!
 
         val bitrate = if (preferenceBitrate == "Direct stream") null else preferenceBitrate.toIntOrNull()
 
-        val allowedContainers = listOf("flac", "mp3", "m4a", "aac", "ogg")
+        val allowedContainers = if (forceTranscode) {
+            emptyList()
+        } else {
+            DolbySupport.allowedContainers(dolbyCapabilities)
+        }
         return jellyfinApi.universalAudioApi.getUniversalAudioStreamUrl(
             mediaId.toUUID(),
             container = allowedContainers,

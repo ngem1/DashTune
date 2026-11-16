@@ -42,6 +42,7 @@ import com.chamika.dashtune.Constants.LOG_TAG
 import com.chamika.dashtune.DashTuneSessionCallback.Companion.PLAYLIST_INDEX_PREF
 import com.chamika.dashtune.DashTuneSessionCallback.Companion.PLAYLIST_TRACK_POSITON_MS_PREF
 import com.chamika.dashtune.data.db.MediaCacheDao
+import com.chamika.dashtune.media.DolbySupport
 import com.chamika.dashtune.media.MediaItemFactory.Companion.ROOT_ID
 import com.chamika.dashtune.media.MediaItemFactory.Companion.IS_AUDIOBOOK_KEY
 import dagger.hilt.android.AndroidEntryPoint
@@ -912,7 +913,9 @@ class DashTuneMusicService : MediaLibraryService() {
 
                 val preferenceBitrate = prefs.getString("bitrate", "Direct stream")!!
                 val bitrate = if (preferenceBitrate == "Direct stream") null else preferenceBitrate.toIntOrNull()
-                val allowedContainers = listOf("flac", "mp3", "m4a", "aac", "ogg")
+                val allowedContainers = DolbySupport.allowedContainers(
+                    DolbySupport.detectCapabilities(this@DashTuneMusicService)
+                )
 
                 var queued = 0
                 for (item in items) {
@@ -993,8 +996,24 @@ class DashTuneMusicService : MediaLibraryService() {
     }
 
     private fun logFormat(player: Player) {
-        val format = (player as ExoPlayer).audioFormat
-        Log.i(LOG_TAG, "Playing ${format?.containerMimeType} at ${format?.averageBitrate} bps")
+        val format = (player as? ExoPlayer)?.audioFormat
+        val dolbyFormat = DolbySupport.fromExoPlayerFormat(format)
+        Log.i(
+            LOG_TAG,
+            "Playing container=${format?.containerMimeType} codec=${format?.sampleMimeType} " +
+                "channels=${format?.channelCount} dolby=$dolbyFormat at ${format?.averageBitrate} bps"
+        )
+    }
+
+    private fun updateDolbyFormatAttribution(player: Player) {
+        val format = (player as? ExoPlayer)?.audioFormat ?: return
+        val dolbyFormat = DolbySupport.fromExoPlayerFormat(format)
+        if (dolbyFormat == DolbySupport.DolbyFormat.NONE) return
+        val currentItem = player.currentMediaItem ?: return
+        val updatedItem = DolbySupport.withFormatAttribution(currentItem, dolbyFormat)
+        if (updatedItem !== currentItem) {
+            player.replaceMediaItem(player.currentMediaItemIndex, updatedItem)
+        }
     }
 
     private val downloadListener = object : DownloadManager.Listener {

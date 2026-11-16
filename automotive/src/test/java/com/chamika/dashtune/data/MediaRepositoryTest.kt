@@ -216,6 +216,47 @@ class MediaRepositoryTest {
     }
 
     @Test
+    fun `cached item preserves Dolby Atmos immersive audio Long extra and format icon URIs`() = runTest {
+        val entity = CachedMediaItemEntity(
+            mediaId = "atmos-chapter-1",
+            parentId = "book-1",
+            title = "Atmos Chapter 1",
+            subtitle = null,
+            artUri = null,
+            mediaType = MediaMetadata.MEDIA_TYPE_MUSIC,
+            isPlayable = true,
+            isBrowsable = false,
+            sortOrder = 0,
+            durationMs = null,
+            isFavorite = false,
+            extras = """{
+                "is_audiobook":true,
+                "${com.chamika.dashtune.media.DolbySupport.KEY_IMMERSIVE_AUDIO}":1,
+                "${com.chamika.dashtune.media.DolbySupport.KEY_CONTENT_FORMAT_TINTABLE_LARGE_ICON_URI}":"${com.chamika.dashtune.media.DolbySupport.DOLBY_ATMOS_LARGE_ICON_URI}",
+                "${com.chamika.dashtune.media.DolbySupport.KEY_CONTENT_FORMAT_TINTABLE_SMALL_ICON_URI}":"${com.chamika.dashtune.media.DolbySupport.DOLBY_SMALL_ICON_URI}"
+            }"""
+        )
+
+        coEvery { dao.getItem("atmos-chapter-1") } returns entity
+
+        val result = repository.getItem("atmos-chapter-1")
+        val extras = result.mediaMetadata.extras!!
+
+        assertEquals(
+            com.chamika.dashtune.media.DolbySupport.METADATA_VALUE_ATTRIBUTE_PRESENT,
+            extras.getLong(com.chamika.dashtune.media.DolbySupport.KEY_IMMERSIVE_AUDIO)
+        )
+        assertEquals(
+            com.chamika.dashtune.media.DolbySupport.DOLBY_ATMOS_LARGE_ICON_URI,
+            extras.getString(com.chamika.dashtune.media.DolbySupport.KEY_CONTENT_FORMAT_TINTABLE_LARGE_ICON_URI)
+        )
+        assertEquals(
+            com.chamika.dashtune.media.DolbySupport.DOLBY_SMALL_ICON_URI,
+            extras.getString(com.chamika.dashtune.media.DolbySupport.KEY_CONTENT_FORMAT_TINTABLE_SMALL_ICON_URI)
+        )
+    }
+
+    @Test
     fun `cached item preserves favorite status`() = runTest {
         val entity = CachedMediaItemEntity(
             mediaId = "track-1",

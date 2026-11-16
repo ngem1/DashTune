@@ -542,4 +542,105 @@ class MediaItemFactoryExtendedTest {
 
         assertEquals("The Great Artist", item.mediaMetadata.albumArtist.toString())
     }
+
+    // --- Dolby Atmos / E-AC-3 audiobook tests ---
+
+    @Test
+    fun `create for E-AC-3 Dolby Atmos audiobook sets format attribution extras when supported`() {
+        PreferenceManager.getDefaultSharedPreferences(context).edit()
+            .putString("bitrate", "Direct stream")
+            .commit()
+
+        val atmosFactory = MediaItemFactory(
+            context,
+            jellyfinApi,
+            256,
+            dolbyCapabilities = DolbySupport.Capabilities(
+                supportsEac3Joc = true,
+                supportsEac3 = true,
+            )
+        )
+        val stream = mockk<org.jellyfin.sdk.model.api.MediaStream>(relaxed = true) {
+            every { type } returns org.jellyfin.sdk.model.api.MediaStreamType.AUDIO
+            every { codec } returns "eac3"
+            every { audioSpatialFormat } returns org.jellyfin.sdk.model.api.AudioSpatialFormat.DOLBY_ATMOS
+        }
+        val dto = BaseItemDto(
+            id = UUID.randomUUID(),
+            type = BaseItemKind.AUDIO_BOOK,
+            name = "Atmos Audiobook",
+            container = "m4b",
+            mediaStreams = listOf(stream)
+        )
+
+        val item = atmosFactory.create(dto)
+        val extras = item.mediaMetadata.extras!!
+
+        assertEquals(
+            DolbySupport.METADATA_VALUE_ATTRIBUTE_PRESENT,
+            extras.getLong(DolbySupport.KEY_IMMERSIVE_AUDIO)
+        )
+        assertEquals(
+            DolbySupport.DOLBY_ATMOS_LARGE_ICON_URI,
+            extras.getString(DolbySupport.KEY_CONTENT_FORMAT_TINTABLE_LARGE_ICON_URI)
+        )
+        assertEquals(
+            DolbySupport.DOLBY_SMALL_ICON_URI,
+            extras.getString(DolbySupport.KEY_CONTENT_FORMAT_TINTABLE_SMALL_ICON_URI)
+        )
+        io.mockk.verify {
+            mockUniversalAudioApi.getUniversalAudioStreamUrl(
+                eq(dto.id),
+                container = eq(
+                    listOf("flac", "mp3", "m4a", "aac", "ogg", "m4b", "mp4", "eac3", "ec3", "mka", "mkv")
+                ),
+                audioBitRate = isNull(),
+                maxStreamingBitrate = isNull(),
+                transcodingContainer = eq("mp3"),
+                audioCodec = eq("mp3"),
+            )
+        }
+    }
+
+    @Test
+    fun `create for E-AC-3 audiobook forces transcoding when device lacks E-AC-3 support`() {
+        PreferenceManager.getDefaultSharedPreferences(context).edit()
+            .putString("bitrate", "Direct stream")
+            .commit()
+
+        val nonDolbyFactory = MediaItemFactory(
+            context,
+            jellyfinApi,
+            256,
+            dolbyCapabilities = DolbySupport.Capabilities()
+        )
+        val stream = mockk<org.jellyfin.sdk.model.api.MediaStream>(relaxed = true) {
+            every { type } returns org.jellyfin.sdk.model.api.MediaStreamType.AUDIO
+            every { codec } returns "eac3"
+            every { audioSpatialFormat } returns org.jellyfin.sdk.model.api.AudioSpatialFormat.DOLBY_ATMOS
+        }
+        val dto = BaseItemDto(
+            id = UUID.randomUUID(),
+            type = BaseItemKind.AUDIO_BOOK,
+            name = "Atmos Audiobook",
+            container = "m4b",
+            mediaStreams = listOf(stream)
+        )
+
+        val item = nonDolbyFactory.create(dto)
+        val extras = item.mediaMetadata.extras!!
+
+        assertFalse(extras.containsKey(DolbySupport.KEY_IMMERSIVE_AUDIO))
+        assertNull(extras.getString(DolbySupport.KEY_CONTENT_FORMAT_TINTABLE_LARGE_ICON_URI))
+        io.mockk.verify {
+            mockUniversalAudioApi.getUniversalAudioStreamUrl(
+                eq(dto.id),
+                container = eq(emptyList()),
+                audioBitRate = isNull(),
+                maxStreamingBitrate = isNull(),
+                transcodingContainer = eq("mp3"),
+                audioCodec = eq("mp3"),
+            )
+        }
+    }
 }

@@ -215,9 +215,12 @@ class PlaybackE2eTest {
                 "no stream request for $trackId; server saw ${dashTune.server.unhandledPaths()}"
             )
 
+        val expectedContainers = DolbySupport.allowedContainers(
+            DolbySupport.detectCapabilities(ApplicationProvider.getApplicationContext())
+        )
         assertEquals(
             "containers are sent as repeated keys, not a comma-joined value",
-            listOf("flac", "mp3", "m4a", "aac", "ogg"),
+            expectedContainers,
             stream.queryValues("container")
         )
         assertEquals("mp3", stream.query("audioCodec"))
