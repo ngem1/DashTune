@@ -26,7 +26,8 @@ import org.jellyfin.sdk.model.api.ImageType
 class MediaItemFactory(
     private val context: Context,
     private val jellyfinApi: ApiClient,
-    private val artSize: Int
+    private val artSize: Int,
+    private val dolbyCapabilities: DolbySupport.Capabilities = DolbySupport.detectCapabilities(context),
 ) {
 
     companion object {

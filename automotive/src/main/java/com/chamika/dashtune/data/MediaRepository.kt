@@ -14,6 +14,7 @@ import com.chamika.dashtune.AlbumArtContentProvider
 import com.chamika.dashtune.Constants.LOG_TAG
 import com.chamika.dashtune.data.db.CachedMediaItemEntity
 import com.chamika.dashtune.data.db.MediaCacheDao
+import com.chamika.dashtune.media.DolbySupport
 import com.chamika.dashtune.media.JellyfinMediaTree
 import com.chamika.dashtune.media.MediaItemFactory
 import com.chamika.dashtune.media.MediaItemFactory.Companion.FAVOURITES

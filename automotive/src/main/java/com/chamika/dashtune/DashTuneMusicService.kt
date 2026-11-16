@@ -423,6 +423,30 @@ class DashTuneMusicService : MediaLibraryService() {
                 }
                 networkErrorRetries = 0
 
+                if (DolbySupport.isUnsupportedFormatError(error.errorCode)) {
+                    val currentItem = p.currentMediaItem
+                    val fallbackUri = currentItem?.localConfiguration?.uri?.let {
+                        DolbySupport.toTranscodingUri(it)
+                    }
+                    if (currentItem != null && fallbackUri != null) {
+                        Log.w(
+                            LOG_TAG,
+                            "Format unsupported for ${currentItem.mediaId}; falling back to server transcoding"
+                        )
+                        FirebaseUtils.safeLog("Format unsupported; falling back to server transcoding")
+                        val transcodedItem = DolbySupport.withFormatAttribution(
+                            currentItem.buildUpon()
+                                .setUri(fallbackUri)
+                                .setCustomCacheKey("${currentItem.mediaId}:transcoded")
+                                .build(),
+                            DolbySupport.DolbyFormat.NONE
+                        )
+                        p.replaceMediaItem(p.currentMediaItemIndex, transcodedItem)
+                        p.prepare()
+                        return
+                    }
+                }
+
                 // With repeat-all on, hasNextMediaItem() never runs out, so a queue in which
                 // nothing can play (a server answering 5xx, say) was skipped round forever.
                 // Each item gets one chance; then stop, keeping the queue for the next play.
@@ -456,6 +480,7 @@ class DashTuneMusicService : MediaLibraryService() {
                     val started = player.currentMediaItem?.mediaId
                     if (started != null && player.playWhenReady) reporter.started(started)
                     logFormat(player)
+                    updateDolbyFormatAttribution(player)
 
                     // Prefetch next tracks
                     val prefetchCount = PreferenceManager
@@ -470,6 +495,11 @@ class DashTuneMusicService : MediaLibraryService() {
 
                     isPlayingAudiobook = player.currentMediaItem
                         ?.mediaMetadata?.extras?.getBoolean(IS_AUDIOBOOK_KEY) == true
+                }
+
+                if (events.contains(Player.EVENT_TRACKS_CHANGED)) {
+                    logFormat(player)
+                    updateDolbyFormatAttribution(player)
                 }
 
                 if (events.contains(Player.EVENT_IS_PLAYING_CHANGED)) {

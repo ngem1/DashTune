@@ -131,6 +131,16 @@ object DolbySupport {
     }
 
     /**
+     * Explicit media [AudioAttributes] matching the player configuration in
+     * [com.chamika.dashtune.DashTuneMusicService] so AAOS queries the media audio zone rather than
+     * `USAGE_UNKNOWN`.
+     */
+    val MEDIA_AUDIO_ATTRIBUTES: AudioAttributes = AudioAttributes.Builder()
+        .setUsage(C.USAGE_MEDIA)
+        .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
+        .build()
+
+    /**
      * Detects Dolby Atmos and Dolby Audio playback support on the vehicle using both ExoPlayer
      * pass-through ([AudioCapabilities]) and platform/OEM codec list ([MediaCodecUtil]),
      * following the Dolby AAOS integration guide.
@@ -143,7 +153,7 @@ object DolbySupport {
         var passthroughAc4Level4 = false
 
         try {
-            val audioCaps = AudioCapabilities.getCapabilities(context, AudioAttributes.DEFAULT, null)
+            val audioCaps = AudioCapabilities.getCapabilities(context, MEDIA_AUDIO_ATTRIBUTES, null)
             passthroughEac3Joc = audioCaps.supportsEncoding(C.ENCODING_E_AC3_JOC)
             passthroughEac3 = audioCaps.supportsEncoding(C.ENCODING_E_AC3) || passthroughEac3Joc
             passthroughAc3 = audioCaps.supportsEncoding(C.ENCODING_AC3)

@@ -19,6 +19,7 @@ import com.chamika.dashtune.support.DashTuneE2eRule
 import com.chamika.dashtune.support.awaitCondition
 import com.chamika.dashtune.support.childrenOf
 import com.chamika.dashtune.support.onMain
+import com.chamika.dashtune.media.DolbySupport
 import com.chamika.dashtune.media.MediaItemFactory.Companion.FAVOURITES
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
